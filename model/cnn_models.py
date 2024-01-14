@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from normalizers import Normalizer
+from normalizer import Normalizer
 
 
 class AlexNet(nn.Module):
