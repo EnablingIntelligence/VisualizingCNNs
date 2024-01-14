@@ -36,6 +36,7 @@ class LocalResponseNorm(nn.Module):
 
 class Normalizer(nn.Module):
     def __init__(self, normalization_method: Norm = Norm.CONTRAST, local_size: int = 2) -> None:
+        super().__init__()
         if normalization_method == Norm.CONTRAST:
             self.model = ContrastNorm()
         elif normalization_method == Norm.LOCAL:
