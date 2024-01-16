@@ -9,7 +9,7 @@ env:
   PYTHON_VERSION: 3.11.5
 
 jobs:
-  lint:
+  pylint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
