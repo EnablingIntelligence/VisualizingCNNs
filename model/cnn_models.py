@@ -8,9 +8,9 @@ class AlexNet(nn.Module):
     def __init__(
         self,
         in_channels: int = 3,
-        num_classes: int = 1000,
+        num_classes: int = 1_000,
         dropout: float = 0.5,
-    ) -> None:
+    ):
         super().__init__()
 
         self.features = nn.Sequential(
