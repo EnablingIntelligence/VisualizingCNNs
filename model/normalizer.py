@@ -35,17 +35,17 @@ class LocalResponseNorm(nn.Module):
 class Normalizer(nn.Module):
     """
     This module enables two normalization methods.
-     - Contrast normalization
      - Local response normalization 
+     - Contrast normalization
     """
     def __init__(
-        self, normalization_method: Norm = Norm.CONTRAST, local_size: int = 2
+        self, normalization_method: Norm = Norm.LOCAL, local_size: int = 2
     ):
         super().__init__()
-        if normalization_method == Norm.CONTRAST:
-            self.model = ContrastNorm()
-        elif normalization_method == Norm.LOCAL:
+        if normalization_method == Norm.LOCAL:
             self.model = LocalResponseNorm(local_size)
+        elif normalization_method == Norm.CONTRAST:
+            self.model = ContrastNorm()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
