@@ -12,6 +12,7 @@ class ContrastNorm(nn.Module):
     """
     https://proceedings.neurips.cc/paper_files/paper/2012/file/c399862d3b9d6b76c8436e924a68c45b-Paper.pdf
     """
+
     def __init__(self):
         super().__init__()
 
@@ -24,6 +25,7 @@ class LocalResponseNorm(nn.Module):
     """
     https://pytorch.org/docs/stable/generated/torch.nn.LocalResponseNorm.html#torch.nn.LocalResponseNorm
     """
+
     def __init__(self, size: int = 2):
         super().__init__()
         self.local_norm = nn.LocalResponseNorm(size)
@@ -35,12 +37,11 @@ class LocalResponseNorm(nn.Module):
 class Normalizer(nn.Module):
     """
     This module enables two normalization methods.
-     - Local response normalization 
+     - Local response normalization
      - Contrast normalization
     """
-    def __init__(
-        self, normalization_method: Norm = Norm.LOCAL, local_size: int = 2
-    ):
+
+    def __init__(self, normalization_method: Norm = Norm.LOCAL, local_size: int = 2):
         super().__init__()
         if normalization_method == Norm.LOCAL:
             self.model = LocalResponseNorm(local_size)

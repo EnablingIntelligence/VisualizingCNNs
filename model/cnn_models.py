@@ -115,7 +115,7 @@ class AlexNet2(nn.Module):
 if __name__ == "__main__":
     m = AlexNet1()
     # m = AlexNet2()
-    
+
     B, C, H, W = 4, 3, 224, 224
     batch = torch.randn(size=(B, C, H, W), dtype=torch.float32)
     output = m(batch)
