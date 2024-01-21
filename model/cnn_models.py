@@ -57,6 +57,29 @@ class AlexNet1(nn.Module):
         x = self.classifier(x)
         return x
 
+    def conv_forward(self, x: torch.Tensor) -> torch.tensor:
+        return self.features(x)
+
+
+class DeconvAlexNet1(nn.Module):
+    # TODO correct deconv for alexnet1
+    def __init__(self, in_channels: int = 256, out_channels: int = 3) -> None:
+        super().__init__()
+        self.features = nn.Sequential(
+            nn.ConvTranspose2d(in_channels, 384, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(384, 384, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(384, 256, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(256, 96, kernel_size=5, stride=2, padding=2),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(96, out_channels, kernel_size=7, stride=2, padding=2),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.tensor:
+        return self.features(x)
+
 
 class AlexNet2(nn.Module):
     """
@@ -115,8 +138,14 @@ class AlexNet2(nn.Module):
 if __name__ == "__main__":
     m = AlexNet1()
     # m = AlexNet2()
+    md = DeconvAlexNet1()
 
     B, C, H, W = 4, 3, 224, 224
     batch = torch.randn(size=(B, C, H, W), dtype=torch.float32)
-    output = m(batch)
+    print(batch.shape)
+
+    output = m.conv_forward(batch)
+    print(output.shape)
+
+    output = md(output)
     print(output.shape)
