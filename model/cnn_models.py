@@ -4,7 +4,16 @@ from normalizer import Normalizer
 
 
 class AlexNet(nn.Module):
-    #TODO implement AlexNet w.r.t. normalizer and deconv
+    """
+    This implementation is based on section 3.5:
+    https://proceedings.neurips.cc/paper_files/paper/2012/file/c399862d3b9d6b76c8436e924a68c45b-Paper.pdf
+
+    By default we use the local response normalization.
+
+    Input: Tensor-Images with the shape B x 3 x 227 x 227 (B x C x H x W).
+    Output: Tensor with B x num_classes, where B represents the batch size.
+    """
+
     def __init__(
         self,
         in_channels: int = 3,
@@ -14,26 +23,26 @@ class AlexNet(nn.Module):
         super().__init__()
 
         self.features = nn.Sequential(
-            nn.Conv2d(in_channels, 64, kernel_size=11, stride=4, padding=2),
+            nn.Conv2d(in_channels, 96, kernel_size=11, stride=4),
             nn.ReLU(inplace=True),
+            Normalizer(),
             nn.MaxPool2d(kernel_size=3, stride=2),
-            nn.Conv2d(64, 192, kernel_size=5, padding=2),
+            nn.Conv2d(96, 256, kernel_size=5),
             nn.ReLU(inplace=True),
+            Normalizer(),
             nn.MaxPool2d(kernel_size=3, stride=2),
-            nn.Conv2d(192, 384, kernel_size=3, padding=1),
+            nn.Conv2d(256, 384, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(384, 384, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
             nn.Conv2d(384, 256, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(256, 256, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2),
         )
 
-        self.avgpool = nn.AdaptiveAvgPool2d((6, 6))
-
         self.classifier = nn.Sequential(
             nn.Dropout(p=dropout),
-            nn.Linear(256 * 6 * 6, 4096),
+            nn.Linear(4096, 4096),
             nn.ReLU(inplace=True),
             nn.Dropout(p=dropout),
             nn.Linear(4096, 4096),
@@ -43,20 +52,14 @@ class AlexNet(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.features(x)
-        x = self.avgpool(x)
         x = torch.flatten(x, 1)
         x = self.classifier(x)
         return x
 
 
-m = nn.Sequential(
-    nn.Conv2d(in_channels=3, out_channels=96, kernel_size=7, stride=2),
-    nn.ReLU(inplace=True),
-    nn.MaxPool2d(2),
-    Normalizer(),
-)
-
-B, C, H, W = 4, 3, 224, 224
-batch = torch.randn(size=(B, C, H, W), dtype=torch.float32)
-output = m(batch)
-print(output.shape)
+if __name__ == "__main__":
+    m = AlexNet()
+    B, C, H, W = 4, 3, 224, 224
+    batch = torch.randn(size=(B, C, H, W), dtype=torch.float32)
+    output = m(batch)
+    print(output.shape)
