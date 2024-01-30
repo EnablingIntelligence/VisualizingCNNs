@@ -32,14 +32,17 @@ def load_dataset(dataset: DatasetType, split: DatasetSplit, transform: Optional[
     :param transform: optional transform to be applied on a sample
     :return: Dataset
     """
-
     is_train_data = split == DatasetSplit.TRAIN
-    if dataset == DatasetType.IMAGENET:
-        split_mode = "train" if is_train_data else "val"
-        return ImageNet(root=DATASET_ROOT, split=split_mode, transform=transform)
-    elif dataset == DatasetType.CIFAR10:
-        return CIFAR10(root=DATASET_ROOT, train=is_train_data, download=True, transform=transform)
-    elif dataset == DatasetType.CIFAR100:
-        return CIFAR100(root=DATASET_ROOT, train=is_train_data, download=True, transform=transform)
-    else:
-        raise ValueError(f"Unsupported dataset {dataset}, supported datasets are: IMAGENET, CIFAR10, CIFAR100")
+
+    match dataset:
+        case DatasetType.IMAGENET:
+            split_mode = "train" if is_train_data else "val"
+            return ImageNet(root=DATASET_ROOT, split=split_mode, transform=transform)
+
+        case DatasetType.CIFAR10:
+            return CIFAR10(root=DATASET_ROOT, train=is_train_data, download=True, transform=transform)
+
+        case DatasetType.CIFAR100:
+            return CIFAR100(root=DATASET_ROOT, train=is_train_data, download=True, transform=transform)
+
+    raise ValueError(f"Unsupported dataset {dataset}, supported datasets are: IMAGENET, CIFAR10, CIFAR100")
