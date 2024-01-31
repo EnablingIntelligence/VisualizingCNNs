@@ -70,7 +70,7 @@ class AlexNet(Conv_Model):
             nn.Linear(4096, num_classes),
         )
 
-    def __forward_conv_layers(self, x: torch.Tensor) -> torch.TensorType:
+    def forward_conv_layers(self, x: torch.Tensor) -> torch.TensorType:
         feat = x
         for name, sub_module in self.features.named_modules():
             if len(name) == 0:
@@ -84,7 +84,7 @@ class AlexNet(Conv_Model):
         return feat
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        feat = self.__forward_conv_layers(x)
+        feat = self.forward_conv_layers(x)
         feat = torch.flatten(feat, 1)
         feat = self.classifier(feat)
         return feat
@@ -104,18 +104,23 @@ class DeConv:
         )
         self.deconv_model: nn.Module = self.DeConvBuilder.build()
         self.pooling_indicies: list[MaxPoolingResults] = trained_model.pooling_indicies
+        self.trained_model = trained_model
 
     def pooling_idx_generator(self) -> MaxPoolingResults:
-        for pool_idx in self.pooling_indicies:
+        for pool_idx in self.pooling_indicies[::-1]:
             yield pool_idx
 
-    def forward_deconv(self, x: torch.Tensor) -> list[torch.Tensor]:
+    def __call__(self, x: torch.Tensor) -> list[torch.Tensor]:
+        # TODO: correct pooling indicies stored. Twice as should be!
         feat = x
         feature_maps = list()
-        for name, module in self.deconv_model.named_modules():
+        for name, module in self.deconv_model.named_children():
             if isinstance(module, nn.ConvTranspose2d):
-                feat = module(x)
+                feat = module(feat)
                 feature_maps.append(feat)
+            elif isinstance(module, nn.MaxUnpool2d):
+                pooling_results = next(self.pooling_idx_generator())
+                feat = module(feat, pooling_results.pooling_indicies)
             else:
                 feat = module(feat)
         return feature_maps
@@ -154,9 +159,11 @@ class DeConvBuilder:
             if isinstance(sub_module, nn.MaxPool2d):
                 unpooling_layer = self.cvt2unpooling_layer(sub_module)
                 self.layers.append(unpooling_layer)
+                
             elif isinstance(sub_module, Normalizer) or isinstance(sub_module, nn.ReLU):
                 activation_function = nn.ReLU(inplace=True)
                 self.layers.append(activation_function)
+                
             elif isinstance(sub_module, nn.Conv2d):
                 transConv = self.conv2transpose(sub_module)
                 self.layers.append(transConv)
@@ -176,7 +183,10 @@ if __name__ == "__main__":  #
     output = model(batch)
     print(f"Output shape: {output.shape}")
 
+    
+    output = model.forward_conv_layers(batch)
     deconv_model = DeConv(model)
+    output_de = deconv_model(output)
 
     # m = AlexNet()
 
