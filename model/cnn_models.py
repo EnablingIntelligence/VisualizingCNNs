@@ -76,11 +76,13 @@ class AlexNet(Conv_Model):
             if len(name) == 0:
                 continue
             elif isinstance(sub_module, nn.MaxPool2d):
+                # TODO get the next feat map shape for the outputsize of unmaxpooling
                 feat, pool_idx = sub_module(feat)
+                random_feat = torch.rand(size=(feat.shape))
+                
                 self.pooling_indicies.append(MaxPoolingResults(pool_idx, feat))
             else:
                 feat = sub_module(feat)
-
         return feat
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -105,13 +107,17 @@ class DeConv:
         self.deconv_model: nn.Module = self.DeConvBuilder.build()
         self.pooling_indicies: list[MaxPoolingResults] = trained_model.pooling_indicies
         self.trained_model = trained_model
+        self.pool_idx_gen = self.pooling_idx_generator()
+        
+        if len(self.pooling_indicies) > 3:
+            # always consider the last 3 pooling indicies
+            self.pooling_indicies = self.pooling_indicies[3:]
 
     def pooling_idx_generator(self) -> MaxPoolingResults:
         for pool_idx in self.pooling_indicies[::-1]:
             yield pool_idx
 
     def __call__(self, x: torch.Tensor) -> list[torch.Tensor]:
-        # TODO: correct pooling indicies stored. Twice as should be!
         feat = x
         feature_maps = list()
         for name, module in self.deconv_model.named_children():
@@ -119,7 +125,7 @@ class DeConv:
                 feat = module(feat)
                 feature_maps.append(feat)
             elif isinstance(module, nn.MaxUnpool2d):
-                pooling_results = next(self.pooling_idx_generator())
+                pooling_results = next(self.pool_idx_gen)
                 feat = module(feat, pooling_results.pooling_indicies)
             else:
                 feat = module(feat)
@@ -148,7 +154,7 @@ class DeConvBuilder:
             kernel_size=max_pooling_layer.kernel_size, stride=max_pooling_layer.stride
         )
 
-    def disable_gradients(self, model):
+    def disable_gradients(self, model: nn.Module):
         for module in model.children():
             for param in module.parameters():
                 param.requires_grad = False
