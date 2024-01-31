@@ -92,7 +92,7 @@ class AlexNet(Conv_Model):
 
 class DeConv:
     """
-    This module defines the deconvolution model for a Conv_Model instance.
+    This class defines the deconvolution model for a Conv_Model instance.
     The Conv_Model must be trained beforehand to generate the required pooling indices for the unpooling operation.
     See: https://pytorch.org/docs/stable/generated/torch.nn.MaxUnpool2d.html
     """
@@ -127,7 +127,6 @@ class DeConv:
 
 
 class DeConvBuilder:
-    # TransConv: required_grad = False
     def __init__(
         self, model: Conv_Model, pooling_indicies: list[MaxPoolingResults]
     ) -> None:
