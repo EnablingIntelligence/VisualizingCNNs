@@ -8,7 +8,8 @@ from dataclasses import dataclass
 @dataclass
 class MaxPoolingResults:
     pooling_indicies: torch.Tensor
-    feature_map: torch.Tensor
+    feature_size: torch.Size
+
 
 
 class Conv_Model(nn.Module):
@@ -179,32 +180,153 @@ class DeConvBuilder:
         return deconv
 
 
-if __name__ == "__main__":  #
+
+class AlexNet_Final(nn.Module):
+    def __init__(
+        self,
+        in_channels: int = 3,
+        num_classes: int = 1_000,
+        dropout: float = 0.5,
+    ):
+        super().__init__()
+        self.pooling_indicies = list()
+        self.relu = nn.ReLU(inplace=True)
+        self.norm = Normalizer()
+        
+        self.conv1 = nn.Conv2d(in_channels, 96, kernel_size=7, stride=2, padding=2)
+        self.pool1 = nn.MaxPool2d(kernel_size=3, stride=2, return_indices=True)
+
+        self.conv2 = nn.Conv2d(96, 256, kernel_size=5, stride=2, padding=2)
+        self.pool2 = nn.MaxPool2d(kernel_size=3, stride=2, return_indices=True)
+
+        self.conv3 = nn.Conv2d(256, 384, kernel_size=3, stride=1, padding=1)
+        self.conv4 = nn.Conv2d(384, 384, kernel_size=3, stride=1, padding=1)
+        self.conv5 = nn.Conv2d(384, 256, kernel_size=3, stride=1, padding=1)
+        self.pool5 = nn.MaxPool2d(kernel_size=3, stride=2, return_indices=True)
+
+        self.unpool5 = nn.MaxUnpool2d(kernel_size=3, stride=2)
+        self.deconv5 = nn.ConvTranspose2d(256, 384, kernel_size=3, stride=1, padding=1)
+        self.deconv4 = nn.ConvTranspose2d(384, 384, kernel_size=3, stride=1, padding=1)
+        self.deconv3 = nn.ConvTranspose2d(384, 256, kernel_size=3, stride=1, padding=1)
+    
+        self.unpool2 = nn.MaxUnpool2d(kernel_size=3, stride=2)
+        self.deconv2 = nn.ConvTranspose2d(256, 96, kernel_size=5, stride=2, padding=2)
+        
+        self.unpool1 = nn.MaxUnpool2d(kernel_size=3, stride=2)
+        self.deconv1 = nn.ConvTranspose2d(96, in_channels, kernel_size=7, stride=2, padding=2)
+                
+        self.classifier = nn.Sequential(
+            nn.Dropout(p=dropout),
+            nn.Linear(256 * 6 * 6, 4096),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=dropout),
+            nn.Linear(4096, 4096),
+            nn.ReLU(inplace=True),
+            nn.Linear(4096, num_classes),
+        )
+        
+        for layer in self.children():
+            if isinstance(layer, nn.ConvTranspose2d):
+                for param in layer.parameters():
+                    param.requires_grad = False
+
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # B x 96 x 111 x 111
+        feat = self.conv1(x) 
+        feat = self.relu(feat)
+        feat = self.norm(feat)
+        size1 = feat.size() # store the output size for the corresponding unpooling layer
+        # B x 96 x 55 x 55
+        feat, idx1 = self.pool1(feat)
+        
+        # B x 256 x 28 x 28
+        feat = self.conv2(feat)
+        feat = self.relu(feat)
+        feat = self.norm(feat)
+        size2 = feat.size() # store the output size for the corresponding unpooling layer
+        # B x 256 x 13 x 13
+        feat, idx2 = self.pool2(feat)
+        
+        # B x 384 x 13 x 13
+        feat = self.conv3(feat)
+        feat = self.relu(feat)
+        
+        # B x 384 x 13 x 13
+        feat = self.conv4(feat)
+        feat = self.relu(feat)
+        
+        # B x 256 x 13 x 13
+        feat = self.conv5(feat)
+        feat = self.relu(feat)
+        feat = self.norm(feat)
+        size5 = feat.size() # store the output size for the corresponding unpooling layer 
+        # B x 256 x 6 x 6
+        feat, idx5 = self.pool5(feat)
+        
+        self.pooling_indicies.append(MaxPoolingResults(idx1, size1))
+        self.pooling_indicies.append(MaxPoolingResults(idx2, size2))
+        self.pooling_indicies.append(MaxPoolingResults(idx5, size5))
+        
+        feat = torch.flatten(feat, 1)
+        feat = self.classifier(feat)
+        return feat
+    
+    
+    def deconv_forward(self, x: torch.Tensor) -> dict:
+        feature_maps = {}
+        with torch.no_grad():
+            # B x 256 x 6 x 6
+            feat = x
+            
+            results5 = self.pooling_indicies[2]
+            idx5, size5 = results5.pooling_indicies, results5.feature_size
+            # B x 256 x 13 x 13
+            feat = self.unpool5(feat, idx5, output_size=size5)
+            feat = self.relu(feat)
+             # B x 384 x 13 x 13
+            feat = self.deconv5(feat)
+            feature_maps["conv5"] = feat.shape
+            
+            feat = self.relu(feat)
+            # B x 384 x 13 x 13
+            feat = self.deconv4(feat)
+            feature_maps["conv4"] = feat.shape
+            
+            feat = self.relu(feat)
+            # B x 256 x 28 x 28
+            feat = self.deconv3(feat)
+            feature_maps["conv3"] = feat.shape
+            
+            results2 = self.pooling_indicies[1]
+            idx2, size2 = results2.pooling_indicies, results2.feature_size
+            # B x 256 x 28 x 28
+            feat = self.unpool2(feat, idx2, output_size=size2)
+            feat = self.relu(feat)
+            # B x 96 x 55 x 55
+            feat = self.deconv2(feat)
+            feature_maps["conv2"] = feat.shape
+            
+            results1 = self.pooling_indicies[0]
+            idx1, size1 = results1.pooling_indicies, results1.feature_size
+            feat = self.unpool2(feat, idx1, output_size=size1)
+            feat = self.relu(feat)
+            feat = self.deconv1(feat)
+            feature_maps["conv1"] = feat.shape
+        
+        return feature_maps
+        
+    
+
+if __name__ == "__main__":  #()
     B, C, H, W = 4, 3, 224, 224
     batch = torch.randn(size=(B, C, H, W), dtype=torch.float32)
     print(f"Batch size: {batch.shape}")
 
-    model = AlexNet()
+    # model = AlexNet()
+    model = AlexNet_Final()
     output = model(batch)
     print(f"Output shape: {output.shape}")
-
     
-    output = model.forward_conv_layers(batch)
-    deconv_model = DeConv(model)
-    output_de = deconv_model(output)
-
-    # m = AlexNet()
-
-    # indices_m = m.pooling_indicies
-    # for idx in indices_m:
-    #     print(type(idx), idx.shape)
-
-    # dmb = DeConvBuilder(pooling_indicies=indices_m)
-
-    # output = u(output, indices, output_size=batch.shape)
-    # print(output.shape)
-
-    # output, idxs_list = m(batch)
-    # print(output.shape)
-    # for idx_l in idxs_list:
-    #     print(idx_l.shape)
+    feat_output = torch.randn(size=(B, 256, 6, 6), dtype=torch.float32)
+    model.deconv_forward(feat_output)    
