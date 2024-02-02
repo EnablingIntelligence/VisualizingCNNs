@@ -11,7 +11,6 @@ class MaxPoolingResults:
     feature_size: torch.Size
 
 
-
 class Conv_Model(nn.Module):
     """
     Interface for the Deconv Model: TODO rewrite doc string
@@ -189,6 +188,7 @@ class AlexNet_Final(nn.Module):
         dropout: float = 0.5,
     ):
         super().__init__()
+        self._deconv_eval = False
         self.pooling_indicies = list()
         self.relu = nn.ReLU(inplace=True)
         self.norm = Normalizer()
@@ -232,21 +232,23 @@ class AlexNet_Final(nn.Module):
 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        self.pooling_indicies = list()
+        
         # B x 96 x 111 x 111
         feat = self.conv1(x) 
         feat = self.relu(feat)
-        feat = self.norm(feat)
         size1 = feat.size() # store the output size for the corresponding unpooling layer
         # B x 96 x 55 x 55
         feat, idx1 = self.pool1(feat)
+        feat = self.norm(feat)
         
         # B x 256 x 28 x 28
         feat = self.conv2(feat)
         feat = self.relu(feat)
-        feat = self.norm(feat)
         size2 = feat.size() # store the output size for the corresponding unpooling layer
         # B x 256 x 13 x 13
         feat, idx2 = self.pool2(feat)
+        feat = self.norm(feat)
         
         # B x 384 x 13 x 13
         feat = self.conv3(feat)
@@ -259,21 +261,28 @@ class AlexNet_Final(nn.Module):
         # B x 256 x 13 x 13
         feat = self.conv5(feat)
         feat = self.relu(feat)
-        feat = self.norm(feat)
         size5 = feat.size() # store the output size for the corresponding unpooling layer 
         # B x 256 x 6 x 6
         feat, idx5 = self.pool5(feat)
+        feat = self.norm(feat)
         
-        self.pooling_indicies.append(MaxPoolingResults(idx1, size1))
-        self.pooling_indicies.append(MaxPoolingResults(idx2, size2))
-        self.pooling_indicies.append(MaxPoolingResults(idx5, size5))
+        if self._deconv_eval:
+            self.pooling_indicies.append(MaxPoolingResults(idx1, size1))
+            self.pooling_indicies.append(MaxPoolingResults(idx2, size2))
+            self.pooling_indicies.append(MaxPoolingResults(idx5, size5))
         
         feat = torch.flatten(feat, 1)
         feat = self.classifier(feat)
         return feat
     
+    def deconv_eval(self):
+        self._deconv_eval = True
     
     def deconv_forward(self, x: torch.Tensor) -> dict:
+        
+        if not self._deconv_eval or len(self.pooling_indicies) == 0 :
+            raise ValueError("Model not in deconv mode")
+        
         feature_maps = {}
         with torch.no_grad():
             # B x 256 x 6 x 6
@@ -286,17 +295,17 @@ class AlexNet_Final(nn.Module):
             feat = self.relu(feat)
              # B x 384 x 13 x 13
             feat = self.deconv5(feat)
-            feature_maps["conv5"] = feat.shape
+            feature_maps["conv5"] = feat
             
             feat = self.relu(feat)
             # B x 384 x 13 x 13
             feat = self.deconv4(feat)
-            feature_maps["conv4"] = feat.shape
+            feature_maps["conv4"] = feat
             
             feat = self.relu(feat)
             # B x 256 x 28 x 28
             feat = self.deconv3(feat)
-            feature_maps["conv3"] = feat.shape
+            feature_maps["conv3"] = feat
             
             results2 = self.pooling_indicies[1]
             idx2, size2 = results2.pooling_indicies, results2.feature_size
@@ -305,14 +314,14 @@ class AlexNet_Final(nn.Module):
             feat = self.relu(feat)
             # B x 96 x 55 x 55
             feat = self.deconv2(feat)
-            feature_maps["conv2"] = feat.shape
+            feature_maps["conv2"] = feat
             
             results1 = self.pooling_indicies[0]
             idx1, size1 = results1.pooling_indicies, results1.feature_size
             feat = self.unpool2(feat, idx1, output_size=size1)
             feat = self.relu(feat)
             feat = self.deconv1(feat)
-            feature_maps["conv1"] = feat.shape
+            feature_maps["conv1"] = feat
         
         return feature_maps
         
@@ -325,8 +334,13 @@ if __name__ == "__main__":  #()
 
     # model = AlexNet()
     model = AlexNet_Final()
+    model.deconv_eval()
     output = model(batch)
     print(f"Output shape: {output.shape}")
     
     feat_output = torch.randn(size=(B, 256, 6, 6), dtype=torch.float32)
-    model.deconv_forward(feat_output)    
+    output_deconv = model.deconv_forward(feat_output)    
+    
+    for feat_map in output_deconv.values():
+        print(feat_map.shape)
+    
