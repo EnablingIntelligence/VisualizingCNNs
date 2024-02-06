@@ -1,9 +1,11 @@
-import torch
-import torch.nn as nn
 from enum import Enum
 
+import torch
+from torch import nn
+from torch.nn.modules import LocalResponseNorm
 
-class Norm(Enum):
+
+class NormMode(Enum):
     CONTRAST = 0
     LOCAL = 1
 
@@ -21,19 +23,6 @@ class ContrastNorm(nn.Module):
         return x
 
 
-class LocalResponseNorm(nn.Module):
-    """
-    https://pytorch.org/docs/stable/generated/torch.nn.LocalResponseNorm.html#torch.nn.LocalResponseNorm
-    """
-
-    def __init__(self, size: int = 2):
-        super().__init__()
-        self.local_norm = nn.LocalResponseNorm(size)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.local_norm(x)
-
-
 class Normalizer(nn.Module):
     """
     This module enables two normalization methods.
@@ -41,12 +30,18 @@ class Normalizer(nn.Module):
      - Contrast normalization
     """
 
-    def __init__(self, normalization_method: Norm = Norm.LOCAL, local_size: int = 2):
+    def __init__(self, normalization_method: NormMode, local_size: int):
         super().__init__()
-        if normalization_method == Norm.LOCAL:
-            self.model = LocalResponseNorm(local_size)
-        elif normalization_method == Norm.CONTRAST:
-            self.model = ContrastNorm()
+
+        match normalization_method:
+            case NormMode.LOCAL:
+                self.model = LocalResponseNorm(local_size)
+
+            case NormMode.CONTRAST:
+                self.model = ContrastNorm()
+
+            case _:
+                raise ValueError("Unknown normalization method")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)

@@ -1,1 +1,2 @@
-from model.normalizer import Normalizer, Norm
+from model.normalizer import NormMode
+from model.alexnet import AlexNet
