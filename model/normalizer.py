@@ -10,19 +10,6 @@ class NormMode(Enum):
     LOCAL = 1
 
 
-class ContrastNorm(nn.Module):
-    """
-    https://proceedings.neurips.cc/paper_files/paper/2012/file/c399862d3b9d6b76c8436e924a68c45b-Paper.pdf
-    """
-
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = torch.abs(torch.tanh(x))
-        return x
-
-
 class Normalizer(nn.Module):
     """
     This module enables two normalization methods.
@@ -38,7 +25,10 @@ class Normalizer(nn.Module):
                 self.model = LocalResponseNorm(local_size)
 
             case NormMode.CONTRAST:
-                self.model = ContrastNorm()
+                """
+                https://proceedings.neurips.cc/paper_files/paper/2012/file/c399862d3b9d6b76c8436e924a68c45b-Paper.pdf
+                """
+                self.model = lambda x: torch.abs(torch.tanh(x))
 
             case _:
                 raise ValueError("Unknown normalization method")
