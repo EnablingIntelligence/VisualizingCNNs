@@ -15,6 +15,7 @@ class MaxPoolingResults:
 
 
 class AlexNetConfig:
+    # pylint: disable=too-few-public-methods
 
     def __init__(self, config: Config):
         self.in_channels = config.in_channels
