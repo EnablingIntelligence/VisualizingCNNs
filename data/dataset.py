@@ -46,3 +46,17 @@ def load_dataset(dataset: DatasetType, split: DatasetSplit, transform: Optional[
             return CIFAR100(root=DATASET_ROOT, train=is_train_data, download=True, transform=transform)
 
     raise ValueError(f"Unsupported dataset {dataset}, supported datasets are: IMAGENET, CIFAR10, CIFAR100")
+
+
+def get_num_classes(dataset: DatasetType) -> int:
+    match dataset:
+        case DatasetType.IMAGENET:
+            return 1000
+
+        case DatasetType.CIFAR10:
+            return 10
+
+        case DatasetType.CIFAR100:
+            return 100
+
+    raise ValueError(f"Unsupported dataset {dataset}, supported datasets are: IMAGENET, CIFAR10, CIFAR100")
