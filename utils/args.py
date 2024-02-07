@@ -41,7 +41,7 @@ def parse_args() -> Config:
     parser.add_argument("--num_workers", type=int, default=4, help="Number of workers for dataloader")
     parser.add_argument("--epochs", type=int, default=30, help="Number of epochs for training")
     parser.add_argument("--seed", type=int, default=0, help="Random seed used for reproducibility")
-    parser.add_argument("--train", type=bool, default=True, help="Train or test the model")
+    parser.add_argument("--train", type=bool, default=False, help="Train or test the model")
     parser.add_argument("--model_file", type=str, default=None, help="Path to a model file")
     parser.add_argument("--save_each_model", type=bool, default=False, help="Save each model during training")
     parser.add_argument("--eval_period", type=int, default=1, help="Evaluation period during training")
