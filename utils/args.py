@@ -29,6 +29,7 @@ class Config:
         self.dropout = args.dropout
         self.normalization_method = args.normalization_method
         self.local_size = args.local_size
+        self.result_path = args.result_path
 
 
 def parse_args() -> Config:
