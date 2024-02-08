@@ -4,7 +4,8 @@ import torch
 from torch import nn
 from torch.nn.modules.module import T
 
-from model.normalizer import NormMode, Normalizer
+from model.normalizer import Normalizer
+from utils import Config, get_device
 
 
 @dataclass
@@ -13,24 +14,28 @@ class MaxPoolingResults:
     feature_size: torch.Size
 
 
+class AlexNetConfig:
+    # pylint: disable=too-few-public-methods
+
+    def __init__(self, config: Config):
+        self.in_channels = config.in_channels
+        self.num_classes = config.num_classes
+        self.dropout = config.dropout
+        self.normalization_method = config.normalization_method
+        self.local_size = config.local_size
+
+
 class AlexNet(nn.Module):
     # pylint: disable=too-many-instance-attributes
 
-    def __init__(
-            self,
-            in_channels: int = 3,
-            num_classes: int = 1_000,
-            dropout: float = 0.5,
-            normalization_method: NormMode = NormMode.LOCAL,
-            local_size: int = 2
-    ):
+    def __init__(self, config: AlexNetConfig):
         super().__init__()
         self._deconv_eval = False
         self.pooling_indicies = []
         self.relu = nn.ReLU(inplace=True)
-        self.norm = Normalizer(normalization_method, local_size)
+        self.norm = Normalizer(config.normalization_method, config.local_size)
 
-        self.conv1 = nn.Conv2d(in_channels, 96, kernel_size=7, stride=2, padding=2)
+        self.conv1 = nn.Conv2d(config.in_channels, 96, kernel_size=7, stride=2, padding=2)
         self.pool1 = nn.MaxPool2d(kernel_size=3, stride=2, return_indices=True)
 
         self.conv2 = nn.Conv2d(96, 256, kernel_size=5, stride=2, padding=2)
@@ -50,16 +55,16 @@ class AlexNet(nn.Module):
         self.deconv2 = nn.ConvTranspose2d(256, 96, kernel_size=5, stride=2, padding=2)
 
         self.unpool1 = nn.MaxUnpool2d(kernel_size=3, stride=2)
-        self.deconv1 = nn.ConvTranspose2d(96, in_channels, kernel_size=7, stride=2, padding=2)
+        self.deconv1 = nn.ConvTranspose2d(96, config.in_channels, kernel_size=7, stride=2, padding=2)
 
         self.classifier = nn.Sequential(
-            nn.Dropout(p=dropout),
+            nn.Dropout(p=config.dropout),
             nn.Linear(256 * 6 * 6, 4096),
             nn.ReLU(inplace=True),
-            nn.Dropout(p=dropout),
+            nn.Dropout(p=config.dropout),
             nn.Linear(4096, 4096),
             nn.ReLU(inplace=True),
-            nn.Linear(4096, num_classes),
+            nn.Linear(4096, config.num_classes),
         )
 
     @property
@@ -185,3 +190,16 @@ class AlexNet(nn.Module):
 
     def load(self, path: str):
         self.load_state_dict(torch.load(path))
+
+    @staticmethod
+    def get_model_from_config(config: Config) -> T:
+        alexnet_config = AlexNetConfig(config)
+        model = AlexNet(alexnet_config)
+
+        if config.model_file:
+            model.load(config.model_file)
+            print("model checkpoint loaded successfully")
+
+        model.to(get_device())
+
+        return model

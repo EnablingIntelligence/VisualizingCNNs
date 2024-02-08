@@ -1,2 +1,11 @@
+from utils import parse_args
+
 if __name__ == "__main__":
-    print("Hello world!")
+    config = parse_args()
+
+    if config.train:
+        print("Start training the model")
+        # TODO #11 pylint: disable=fixme
+    else:
+        print("Start testing the model")
+        # TODO #14 pylint: disable=fixme
