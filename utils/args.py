@@ -1,6 +1,7 @@
 import argparse
 import os
 import random
+import time
 
 import numpy as np
 import torch
@@ -35,8 +36,7 @@ class Config:
 def parse_args() -> Config:
     parser = argparse.ArgumentParser(description="Visualizing Convolutional Neural Networks")
 
-    parser.add_argument("--data", type=int, default=4,
-                        help="Dataset (1) MNIST, (2) CIFAR10, (3) CIFAR100, (4) IMAGENET")
+    parser.add_argument("--data", type=int, default=1, help="Dataset (1) IMAGENET, (2) CIFAR10, (3) CIFAR100")
     parser.add_argument("--batch_size", type=int, default=128, help="Batch size to use for training and testing")
     parser.add_argument("--num_workers", type=int, default=4, help="Number of workers for dataloader")
     parser.add_argument("--epochs", type=int, default=30, help="Number of epochs for training")
@@ -45,7 +45,8 @@ def parse_args() -> Config:
     parser.add_argument("--model_file", type=str, default=None, help="Path to a model file")
     parser.add_argument("--save_each_model", type=bool, default=False, help="Save each model during training")
     parser.add_argument("--eval_period", type=int, default=1, help="Evaluation period during training")
-    parser.add_argument("--run_id", type=str, default="0", help="Run ID used for logging")
+    parser.add_argument("--run_id", type=str, default=f"run_{int(round(time.time() * 1000))}",
+                        help="Run ID used for logging")
     parser.add_argument("--dropout", type=float, default=0.5, help="Dropout probability used for training")
     parser.add_argument("--normalization_method", type=int, default=1,
                         help="Normalization method (0) Contrast, (1) Local")
