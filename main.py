@@ -1,3 +1,4 @@
+from train import test
 from utils import parse_args
 
 if __name__ == "__main__":
@@ -8,4 +9,4 @@ if __name__ == "__main__":
         # TODO #11 pylint: disable=fixme
     else:
         print("Start testing the model")
-        # TODO #14 pylint: disable=fixme
+        test(config)
