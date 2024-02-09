@@ -1,3 +1,5 @@
+from typing import Dict
+
 import torch
 from torch.nn.functional import cross_entropy
 from torch.utils.tensorboard import SummaryWriter
@@ -8,15 +10,16 @@ from model import AlexNet
 from utils import Config
 
 
-def test(config: Config):
+def test(config: Config) -> Dict[str, float]:
     writer = SummaryWriter(config.result_path)
     model = AlexNet.get_model_from_config(config)
-    test_model(model, writer, config)
+    return test_model(model, writer, config)
 
 
-def test_model(model: AlexNet, writer: SummaryWriter, config: Config) -> float:
-    total_loss = 0.0
+def test_model(model: AlexNet, writer: SummaryWriter, config: Config, global_step: int = 0) -> Dict[str, float]:
     n_iter = 0
+    total_loss = 0.0
+    correct_classifications = 0
     test_loader = get_data_loader(
         dataset=config.data,
         split=DatasetSplit.TEST,
@@ -24,6 +27,7 @@ def test_model(model: AlexNet, writer: SummaryWriter, config: Config) -> float:
         shuffle=False,
         num_workers=config.num_workers
     )
+    n_samples = len(test_loader.dataset)
 
     model.eval()
     device = model.device
@@ -33,15 +37,22 @@ def test_model(model: AlexNet, writer: SummaryWriter, config: Config) -> float:
 
         for inputs, targets in progress_bar:
             inputs, targets = inputs.to(device), targets.to(device)
+            n_iter += 1
 
             outputs = model(inputs)
-            loss = cross_entropy(outputs, targets)
 
+            loss = cross_entropy(outputs, targets, reduction="sum")
             total_loss += loss.item()
-            n_iter += 1
-            avg_loss = total_loss / n_iter
 
-            progress_bar.set_description(f"Test Iter: [{n_iter}/{len(test_loader)}] Loss: {avg_loss:.4f}")
-            writer.add_scalar("Loss/test", avg_loss, n_iter)
+            _, predictions = torch.max(outputs, dim=1)
+            correct_classifications += (predictions == targets).sum().item()
 
-    return avg_loss
+            progress_bar.set_description(f"Test Iter: [{n_iter}/{len(test_loader)}]")
+
+    test_loss = total_loss / n_samples
+    writer.add_scalar("Loss/test", test_loss, global_step)
+
+    test_accuracy = 100 * correct_classifications / n_samples
+    writer.add_scalar("Accuracy/test", test_accuracy, global_step)
+
+    return {"accuracy": test_accuracy, "loss": test_loss}
