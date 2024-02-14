@@ -1,4 +1,4 @@
-from train import test
+from train import test, train
 from utils import parse_args
 
 if __name__ == "__main__":
@@ -6,7 +6,8 @@ if __name__ == "__main__":
 
     if config.train:
         print("Start training the model")
-        # TODO #11 pylint: disable=fixme
+
+        train(config)
     else:
         print("Start testing the model")
 
